@@ -20,6 +20,7 @@ class FlowDataset(data.Dataset):
         self.augmentor = None
         self.sparse = sparse
 
+        # by jiahan 数据增强
         if aug_params is not None:
             if sparse:
                 self.augmentor = SparseFlowAugmentor(**aug_params)
@@ -267,6 +268,51 @@ class HD1K(FlowDataset):
 
             seq_ix += 1
 
+from path import Path
+class SimCol(FlowDataset):
+    """得到 SimCol 的数据集, 数据集以如下方式组织
+    root/
+    --- train.txt
+    --- val.txt
+    --- 0001.png
+    --- 0002.png
+    --- ...
+    --- oflows/
+    ------- 0001.npy
+    ------- 0002.npy
+    ------- ...
+
+    Args:
+        FlowDataset (_type_): _description_
+    """
+    def __init__(self, aug_params=None, root='', is_train=True):
+        """_summary_
+
+        Args:
+            aug_params (_type_, optional): _description_. Defaults to None.
+            root (str, optional): root path. Defaults to ''.
+            is_train (bool, optional): _description_. Defaults to True.
+        """
+        super().__init__(aug_params)
+        
+        root_path = Path(root)
+        # 得到 scenes 目录
+        scenes = []
+        if is_train: tag_file = root/'train.txt'
+        else: tag_file = root/'val.txt'
+        with open(tag_file, 'r') as f:
+            lines = f.readlines()
+        for line in lines:
+            scenes.append(root_path/line[:-1])
+        # 读取 frame 和 flow
+        for scene in scenes:
+            frames = sorted(scene.listdir("*.png"))
+            oflows = sorted((scene/'oflows').listdir("*.npy"))
+            for i in range(len(frames)-1):
+                self.flow_list += oflows[i]
+                self.image_list += [ [frames[i],frames[i+1]] ]
+            
+        
 
 def build_train_dataset(args):
     """ Create the data loader for the corresponding training set """
